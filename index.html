@@ -731,25 +731,26 @@
   }
 
   /* ---- tutoriel contextuel v34 ---- */
-  /* Ancré en bas-gauche à l'origine, le panneau finissait RÉGULIÈREMENT sur
-     le chariot lui-même : la caméra d'épaule (mode par défaut) le maintient
-     à une position d'écran quasi constante, centrée horizontalement et
-     vers ~80 % de la hauteur (mesuré par projection caméra du pivot du
-     véhicule) — précisément la bande verticale que occupait ce panneau en
-     grandissant vers le haut depuis bottom:150px. Il se pose maintenant
-     SOUS la barre du circuit (haut-centre), la seule zone que ni le
-     véhicule (toujours plus bas) ni aucun autre panneau flottant
-     (formation/objectif à droite, bilan/leviers à gauche) ne revendique. */
-  .coach{position:fixed;top:104px;left:50%;transform:translate(-50%,0);z-index:22;
-    width:min(400px,34vw);
-    /* Le plafond garde le panneau bien au-dessus de la bande où roule le
-       chariot, quel que soit son contenu (récapitulatif compris) ; au-delà,
-       il défile plutôt que de recouvrir. */
-    max-height:min(360px,42vh);overflow-y:auto;
+  /* Ancré en bas-gauche : c'est la position demandée, mais deux versions
+     précédentes l'ont manquée. La 1re (déployée) le centrait en bas
+     (left:50%), pile sur le véhicule. La 2e (d6cd4cc, jamais déployée)
+     l'a mis en colonne gauche mais avec width:min(400px,38vw) — cette
+     fraction est trop généreuse et le fait encore déborder vers le centre
+     sur les largeurs moyennes.
+     Mesuré (projection caméra du bord AVANT du véhicule, caméra d'épaule
+     par défaut) : ce bord gauche tombe vers ~30 % de la largeur d'écran,
+     de façon stable de 900 à 1280px (313 / 365 / 472 px). D'où le
+     plafond en 28vw ci-dessous, qui laisse une marge réelle à chaque
+     largeur plutôt que de s'en approcher. */
+  .coach{position:fixed;left:18px;bottom:150px;z-index:22;width:min(380px,28vw);
+    /* Ancré en bas, le panneau grandit vers le HAUT quand un pas ajoute son
+       récapitulatif. Le plafond garantit qu'il n'atteint jamais le tableau
+       de bord ; au-delà, il défile plutôt que de recouvrir. */
+    max-height:max(210px, calc(100vh - 430px));overflow-y:auto;
     background:rgba(36,31,23,.88);color:var(--papier);border:1.5px solid rgba(233,221,198,.75);
     box-shadow:5px 6px 0 rgba(36,31,23,.28);padding:12px 15px 13px;backdrop-filter:blur(3px);
     text-align:left;transition:opacity .2s ease, transform .2s ease}
-  .coach.hidden{opacity:0;pointer-events:none;transform:translate(-50%,-10px)}
+  .coach.hidden{opacity:0;pointer-events:none;transform:translateY(10px)}
   .coach .ctop{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:5px}
   .coach .ck{font:600 11px "IBM Plex Mono",monospace;letter-spacing:.14em;text-transform:uppercase;color:#f1d48a}
   .coach .cmin{border:1px solid rgba(233,221,198,.55);background:transparent;color:var(--papier);cursor:pointer;
@@ -765,7 +766,7 @@
   .coach .crecap .rt{font:700 14px/1.25 "Zilla Slab",serif;color:#f4ecd8}
   .coach .crecap .rn{font:600 11.5px "IBM Plex Mono",monospace;color:#c9b78c;margin-top:2px}
   .coach .crecap .rm{font-size:12.5px;line-height:1.4;font-style:italic;margin-top:4px;opacity:.92}
-  .coach.min{width:auto;max-width:min(400px,34vw);padding:7px 10px}
+  .coach.min{width:auto;max-width:min(380px,28vw);padding:7px 10px;bottom:150px}
   .coach.min .ctop{margin:0}
   .coach-pulse{animation:coachPulse 1.1s ease-in-out infinite!important;outline:3px solid #f1d48a!important;outline-offset:4px}
   @keyframes coachPulse{0%,100%{box-shadow:0 0 0 0 rgba(241,212,138,.55)}50%{box-shadow:0 0 0 8px rgba(241,212,138,0)}}
@@ -869,9 +870,9 @@
   @media(max-width:760px){
     /* top:104px passe sous la barre d'actes ET sous le coffre en haut à
        gauche : sur un écran étroit, aucun des deux n'est recouvert. */
-    .coach{left:12px;right:12px;top:104px;bottom:auto;transform:none;width:auto;max-width:none;
+    .coach{left:12px;right:12px;top:104px;bottom:auto;width:auto;max-width:none;
       max-height:calc(100vh - 300px)}
-    .coach.min{left:12px;right:auto;top:104px;bottom:auto;transform:none;max-width:calc(100vw - 24px)}
+    .coach.min{left:12px;right:auto;top:104px;bottom:auto;max-width:calc(100vw - 24px)}
     .coach h3{font-size:16px}.coach p{font-size:12.5px}
   }
 
