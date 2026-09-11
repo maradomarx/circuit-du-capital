@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
 <title>Le Circuit du Capital — Prototype 3D v66</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%23e9ddc6'/%3E%3Ctext x='8' y='12' text-anchor='middle' font-size='12' font-family='monospace' fill='%238a2c1d'%3E%C2%A3%3C/text%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -876,6 +876,73 @@
     .coach h3{font-size:16px}.coach p{font-size:12.5px}
   }
 
+
+  /* =================================================================
+     v67 — LE TÉLÉPHONE JOUE AUSSI (mission vivant-sur-mobile, sept. 2026)
+     1. Commandes tactiles : levier + trois boutons, sous html.tactile.
+     2. Mise en page des petits écrans (≤ 760 px) : la barre du circuit
+        défile horizontalement au lieu de déborder, coffre et paramètres
+        passent sous elle, les panneaux latéraux prennent la largeur, tout
+        ce qui vivait en bas se relève au-dessus des commandes.
+     ================================================================= */
+  #app canvas{touch-action:none}
+  .tc{display:none}
+  html.tactile .tc{display:block}
+  .tc-stick{position:fixed;left:14px;bottom:52px;z-index:26;width:128px;height:128px;border-radius:50%;
+    background:rgba(233,221,198,.2);border:1.5px solid rgba(233,221,198,.6);touch-action:none;
+    -webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;backdrop-filter:blur(2px)}
+  .tc-stick .tc-knob{position:absolute;left:50%;top:50%;width:54px;height:54px;margin:-27px 0 0 -27px;border-radius:50%;
+    background:rgba(233,221,198,.94);border:1.5px solid var(--encre);box-shadow:2px 3px 0 rgba(36,31,23,.3);pointer-events:none;
+    transition:transform .05s linear}
+  .tc-stick.on{background:rgba(233,221,198,.32)}
+  .tc-acts{position:fixed;right:12px;bottom:52px;z-index:26;display:flex;flex-direction:column;gap:10px;align-items:flex-end}
+  .tc-btn{width:66px;height:66px;border-radius:50%;border:1.5px solid var(--encre);background:rgba(233,221,198,.92);color:var(--encre);
+    box-shadow:2px 3px 0 rgba(36,31,23,.3);font-family:"Zilla Slab",serif;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    touch-action:manipulation;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;padding:0;cursor:pointer}
+  .tc-btn b{font-size:12px;letter-spacing:.4px;text-transform:uppercase}
+  .tc-btn small{font:600 9px "IBM Plex Mono",monospace;opacity:.55;margin-top:1px}
+  .tc-btn[hidden]{display:none}
+  .tc-btn.on{background:var(--rouge);color:var(--papier);border-color:var(--rouge)}
+  #tc-agir:not(.on){opacity:.5}
+  .tc-btn:active{transform:translate(1px,1px);box-shadow:1px 1px 0 rgba(36,31,23,.3)}
+  body.mcinema-on .tc{opacity:0;pointer-events:none;transition:opacity .5s}
+  /* l'invite de zone se touche : c'est le même geste qu'Agir */
+  html.tactile .prompt{pointer-events:auto;cursor:pointer;bottom:196px;max-width:calc(100vw - 24px);white-space:normal;text-align:center}
+  html.tactile .log{bottom:8px;left:12px}
+  html.tactile .coach .keys{display:none}
+  .tac-only{display:none}
+  html.tactile .tac-only{display:block}
+  html.tactile .help-panel > div:has(kbd){display:none}
+
+  @media (max-width:760px){
+    .circuit{top:8px;left:8px;right:8px;transform:none;overflow-x:auto;justify-content:flex-start;
+      padding:5px 6px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+    .circuit::-webkit-scrollbar{display:none}
+    .circuit .stp{min-width:42px}
+    .circuit.fonda .act{padding:0 8px}
+    .hud{top:96px;left:8px;min-width:0;padding:7px 9px}
+    .hud h2{font-size:12px;margin-bottom:5px}
+    .hud .r{font-size:12px;gap:10px}
+    .help{top:96px;right:8px;width:auto}
+    .help .help-panel{position:fixed;left:8px;right:8px;top:140px;min-width:0;max-height:calc(100vh - 260px);overflow-y:auto}
+    .quest{top:auto;bottom:200px;right:8px;width:172px;font-size:11px}
+    .formation{top:96px;left:8px;right:8px;width:auto;max-height:calc(100vh - 300px)}
+    .levers{width:200px;bottom:200px;left:8px}
+    .villebadge{bottom:200px;left:8px;width:160px}
+    .whap{left:8px;right:8px;top:140px;width:auto}
+    .coach{left:8px;right:8px;top:186px;bottom:auto;width:auto;max-width:none;max-height:max(120px,calc(100vh - 430px))}
+    .coach.min{left:8px;right:auto;top:186px;bottom:auto;max-width:calc(100vw - 16px)}
+    .concept .cpanel{padding:20px 18px;max-height:94vh}
+    .concept h2{font-size:24px}
+    .crisisTag{top:96px}
+  }
+  /* téléphone en paysage : peu de hauteur, le tutoriel se glisse entre le
+     coffre et les commandes plutôt que dessus */
+  @media (max-width:900px) and (max-height:500px){
+    .coach{top:96px;left:146px;right:100px;bottom:auto;width:auto;max-height:calc(100vh - 110px)}
+    .quest{bottom:8px;right:96px;width:160px}
+    .formation{top:96px;left:146px;right:8px;max-height:calc(100vh - 110px)}
+  }
 </style>
 <!-- v24: panneaux repositionnés, circuit nettoyé, animation drone avec chariot, ouvriers, argent et marchandises. -->
 </head>
@@ -928,6 +995,7 @@
     <div><kbd>B</kbd> — son d'ambiance</div>
     <div class="hsep"><kbd>L</kbd>/<kbd>K</kbd>/<kbd>J</kbd> — performance, qualité, densité</div>
     <div><kbd>F3</kbd> — afficher fps / draw calls / triangles</div>
+    <div class="tac-only">Levier en bas à gauche — conduire · <b>Agir</b> — dans un lieu · <b>Voile</b> · <b>Caméra</b></div>
     <div class="hsep" id="save-row">
       <div style="font-style:normal;opacity:1;text-transform:uppercase;letter-spacing:.7px;font-size:11px;margin-bottom:4px">Partie</div>
       <div class="save-status" id="save-status">aucune partie sauvegardée</div>
@@ -1033,6 +1101,19 @@
 <div class="crisisTag" id="crisisTag">⚠ Crise — les marchandises ne se vendent plus</div>
 
 <div id="flash"></div>
+
+<!-- v67 — COMMANDES TACTILES. Un levier à gauche (pointer capture, quatre
+     booléens d'Input), trois boutons à droite : Agir (E), Voile (V, dès que
+     le voile est débloqué), Caméra (C). N'existent que sous html.tactile,
+     posée par app.js quand le pointeur principal est grossier. -->
+<div class="tc" id="tc">
+  <div class="tc-stick" id="tc-stick" aria-label="Levier de conduite"><div class="tc-knob"></div></div>
+  <div class="tc-acts">
+    <button class="tc-btn" id="tc-agir" type="button" aria-label="Agir dans ce lieu"><b>Agir</b><small>E</small></button>
+    <button class="tc-btn" id="tc-voile" type="button" hidden aria-label="Lever le voile"><b>Voile</b><small>V</small></button>
+    <button class="tc-btn" id="tc-cam" type="button" aria-label="Changer de caméra"><b>Caméra</b><small>C</small></button>
+  </div>
+</div>
 
 <div class="log" id="log">
   <button id="chantier-btn" title="Débloqué plus tard" style="display:none!important">⚒ Plan du chantier</button>
