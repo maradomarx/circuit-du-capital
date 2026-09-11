@@ -6158,6 +6158,7 @@ const CinemaMode = (function(){
       if(active && (e.code === 'Escape' || e.code === 'Space')){ e.preventDefault(); skip(); }
     });
     window.addEventListener('mousedown', () => { if(active) skip(); }, true);
+    window.addEventListener('touchstart', () => { if(active) skip(); }, { capture: true, passive: true });
     _domReady = true;
   }
 
@@ -6591,6 +6592,10 @@ function _M_POV_updateTargetIndicator(){
 /* ===================================================================
    Input  —  clavier (flèches + ZQSD/WASD)
    =================================================================== */
+/* v67 — LE TACTILE. Vrai quand le pointeur principal est grossier (un doigt),
+   avec le repli des vieux WebKit qui ne connaissent pas la media query. */
+const TOUCH=(window.matchMedia&&matchMedia('(pointer:coarse)').matches)
+  ||(navigator.maxTouchPoints>0&&/Android|iPhone|iPad|iPod/i.test(navigator.userAgent));
 const Input={fwd:false,back:false,left:false,right:false};
 const KEYMAP={
   ArrowUp:'fwd', KeyW:'fwd', KeyZ:'fwd',
@@ -6598,6 +6603,85 @@ const KEYMAP={
   ArrowLeft:'left', KeyA:'left', KeyQ:'left',
   ArrowRight:'right', KeyD:'right',
 };
+
+/* v67 — Commandes tactiles : le levier écrit les quatre mêmes booléens que
+   le clavier, les boutons appellent les mêmes fonctions que les touches.
+   Rien d'autre du jeu ne sait qu'on est au doigt. */
+function installTouchControls(){
+  const tc=document.getElementById('tc'); if(!tc) return;
+  document.documentElement.classList.add('tactile');
+  const stick=document.getElementById('tc-stick'), knob=stick.querySelector('.tc-knob');
+  let pid=null, cx=0, cy=0, R=64;
+  function setDir(dx,dy){
+    const r=Math.hypot(dx,dy), dead=R*0.22;
+    const k=Math.min(1,r/R), ux=r?dx/r:0, uy=r?dy/r:0;
+    knob.style.transform=`translate(${ux*k*R*0.55}px,${uy*k*R*0.55}px)`;
+    if(r<dead){ Input.fwd=Input.back=Input.left=Input.right=false; return; }
+    /* avant/arrière quand le levier est franchement vertical ; le braquage
+       prend dès qu'on s'écarte de l'axe */
+    Input.fwd = -dy>dead && -dy>Math.abs(dx)*0.45;
+    Input.back = dy>dead && dy>Math.abs(dx)*0.45;
+    Input.left = -dx>dead;
+    Input.right = dx>dead;
+    stick.dataset.dir=['fwd','back','left','right'].filter(k=>Input[k]).join(' ');
+  }
+  const end=e=>{ if(e&&e.pointerId!==pid) return; pid=null; stick.classList.remove('on'); knob.style.transform='';
+    Input.fwd=Input.back=Input.left=Input.right=false; stick.dataset.dir=''; };
+  stick.addEventListener('pointerdown',e=>{ if(pid!==null) return; pid=e.pointerId;
+    try{ stick.setPointerCapture(pid); }catch(_){}
+    const b=stick.getBoundingClientRect(); cx=b.left+b.width/2; cy=b.top+b.height/2; R=b.width/2;
+    stick.classList.add('on'); setDir(e.clientX-cx,e.clientY-cy); e.preventDefault(); });
+  stick.addEventListener('pointermove',e=>{ if(e.pointerId!==pid) return; setDir(e.clientX-cx,e.clientY-cy); e.preventDefault(); });
+  stick.addEventListener('pointerup',end); stick.addEventListener('pointercancel',end);
+  stick.addEventListener('lostpointercapture',end);
+  const agir=document.getElementById('tc-agir'), voile=document.getElementById('tc-voile'), cam=document.getElementById('tc-cam');
+  agir.addEventListener('click',()=>{ if(currentZone) interactZone(currentZone); });
+  voile.addEventListener('click',()=>{ if(voileUnlocked) toggleMarx(); });
+  cam.addEventListener('click',()=>{ CameraController.cycleMode(); });
+  /* l'invite de zone, au-dessus des commandes, se touche aussi */
+  const pr=document.getElementById('prompt');
+  if(pr) pr.addEventListener('click',()=>{ if(currentZone) interactZone(currentZone); });
+  setInterval(()=>{
+    agir.classList.toggle('on', !!currentZone);
+    voile.hidden=!voileUnlocked;
+    voile.classList.toggle('on', !!marxView);
+  },250);
+  /* la barre du circuit défile sur petit écran : la case courante reste au champ */
+  let lastNow=null;
+  setInterval(()=>{ const n=document.querySelector('.circuit .now');
+    if(n&&n!==lastNow){ lastNow=n; try{ n.scrollIntoView({inline:'center',block:'nearest'}); }catch(_){} } },600);
+}
+/* Le jeu nomme ses touches dans des dizaines de textes (« Appuie sur E »,
+   « Z Q S D », « Touche V »). Au doigt, ces mots sont faux. Plutôt que de
+   retoucher chaque chaîne, on corrige ce qui ARRIVE À L'ÉCRAN : un observateur
+   réécrit les <b>E</b> et leurs verbes. Idempotent — une seconde passe ne
+   trouve plus rien à changer. */
+function installTouchText(){
+  function fixText(n){
+    const v=n.nodeValue; if(!v) return;
+    let w=v.replace(/Touche V — /g,'Bouton Voile — ');
+    if(w!==v) n.nodeValue=w;
+  }
+  function fix(root){
+    if(!root||root.nodeType!==1) return;
+    const bs=root.matches&&root.matches('b')?[root]:[]; root.querySelectorAll('b').forEach(b=>bs.push(b));
+    for(const b of bs){
+      const t=b.textContent;
+      if(t==='E'){
+        b.textContent='Agir';
+        const p=b.previousSibling;
+        if(p&&p.nodeType===3){ p.nodeValue=p.nodeValue.replace(/Appuie sur $/,'Touche ').replace(/appuie sur $/,'touche ')
+          .replace(/appuies sur $/,'touches ').replace(/\(touche $/,'(bouton '); }
+      } else if(t==='Z Q S D'){ b.textContent='le levier, en bas à gauche,'; }
+      else if(/^Appuie sur E pour /.test(t)){ b.textContent=t.replace('Appuie sur E pour','Touche Agir pour'); }
+    }
+    const w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT); let n; while((n=w.nextNode())) fixText(n);
+  }
+  new MutationObserver(ms=>{ for(const m of ms) m.addedNodes.forEach(n=>fix(n.nodeType===1?n:n.parentElement)); })
+    .observe(document.body,{childList:true,subtree:true});
+  fix(document.body);
+}
+if(TOUCH){ installTouchControls(); installTouchText(); }
 addEventListener('keydown',e=>{ const k=KEYMAP[e.code]; if(k){Input[k]=true;e.preventDefault();}
   if(e.code==='KeyR'){Vehicle.reset();}
   if(e.code==='KeyC'){ e.preventDefault(); CameraController.cycleMode(); }
@@ -9794,7 +9878,7 @@ function makeLabelMesh(text,x,y,z){
    circuler sous les yeux du joueur. »
    =================================================================== */
 let VISUAL_LIFE = true;
-let GRAPHICS_QUALITY = 'medium';   // 'low' | 'medium' | 'high'
+let GRAPHICS_QUALITY = TOUCH ? 'low' : 'medium';   // v67 : un téléphone part en basse qualité   // 'low' | 'medium' | 'high'
 function gQual(){ return GRAPHICS_QUALITY==='high'?1.0:GRAPHICS_QUALITY==='low'?0.45:0.75; }
 
 /* --- vocabulaire architectural modulaire + contours gravure --- */
@@ -10334,7 +10418,7 @@ function createDebtThread(){
    ajoutée : le décor n'entrave jamais la conduite (les objets légers
    se laissent bousculer). « Avoir envie de rouler avant de comprendre. »
    =================================================================== */
-let DETAIL_LEVEL='high';                 // 'low' | 'medium' | 'high'
+let DETAIL_LEVEL=TOUCH?'medium':'high';   // v67 : décor plus léger au doigt                 // 'low' | 'medium' | 'high'
 function dDen(){ return DETAIL_LEVEL==='high'?1:DETAIL_LEVEL==='medium'?0.65:0.35; }
 
 /* --- textures procédurales sobres (gravure / registre) --- */
