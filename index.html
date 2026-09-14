@@ -945,62 +945,144 @@
   }
 
   /* =================================================================
-     LE BANDEAU REPLIABLE (mission mobile-panneaux, sept. 2026) — voir
-     mobileDockSync() dans app.js. Hors html.m-dock (grand écran, ou mode
-     guidé), rien de ceci ne s'applique : les panneaux sont ceux d'avant.
+     v70 — LA BARRE D'ÉTAT ET LES MENUS (mission menus, sept. 2026) — voir
+     menusBuild() dans app.js. À l'écran : une barre et des menus ; les
+     panneaux vivent dans une feuille, une à la fois.
      ================================================================= */
-  .m-bar,.m-bord,.m-foot{display:none}
-  @media (max-width:760px){
-    /* les étapes du circuit gardent leur largeur : la barre défile au lieu
-       d'écraser « Banque » sur « M. des moyens » */
-    .circuit .stp{flex:0 0 auto;padding:0 3px}
+  .circuit .stp{flex:0 0 auto}
+  .mbar{position:fixed;top:0;left:0;right:0;z-index:28;display:flex;align-items:center;gap:10px;
+    padding:6px 10px;background:rgba(233,221,198,.97);border-bottom:1.5px solid var(--encre);
+    box-shadow:0 3px 0 rgba(36,31,23,.16);color:var(--encre)}
+  .mb-state{display:flex;align-items:stretch;gap:0;min-width:0;flex:1 1 auto;overflow-x:auto;scrollbar-width:none}
+  .mb-state::-webkit-scrollbar{display:none}
+  .mb-item{display:flex;flex-direction:column;justify-content:center;gap:1px;line-height:1.05;padding:3px 10px;
+    border:0;border-left:1px solid #bdab8b;background:none;font:inherit;color:inherit;text-align:left;white-space:nowrap}
+  .mb-item:first-child{border-left:0;padding-left:2px}
+  .mb-item[hidden]{display:none}
+  .mb-item small{font:600 10.5px "IBM Plex Mono",monospace;letter-spacing:.06em;text-transform:uppercase;opacity:.68}
+  .mb-item b{font:700 15px "Zilla Slab",serif}
+  .mb-cap b{color:#7a5a12}
+  button.mb-item{cursor:pointer}
+  button.mb-item:hover b{text-decoration:underline}
+  .mb-step b{font-size:14px}
+  .mb-alert{align-self:center;margin-left:6px;padding:4px 9px;border:1.5px solid var(--rouge);background:var(--rouge);color:var(--papier);
+    font:700 12px "IBM Plex Mono",monospace;cursor:pointer;white-space:nowrap;animation:crisisBeat 1s ease-in-out infinite}
+  .mb-alert[hidden]{display:none}
+  .mb-launch{flex:0 0 auto;min-height:36px;padding:0 12px;border:1.5px solid var(--encre);background:var(--encre);color:var(--papier);
+    font:700 13px "Zilla Slab",serif;cursor:pointer;white-space:nowrap;box-shadow:2px 2px 0 rgba(36,31,23,.25)}
+  .mb-launch[hidden]{display:none}
+  .mb-launch.ready{background:var(--rouge);border-color:var(--rouge);animation:coachPulse 1.2s ease-in-out infinite}
+  .mb-menus{display:flex;gap:4px;flex:0 0 auto}
+  .mb-menus button{min-height:36px;padding:0 11px;border:1.5px solid var(--encre);background:var(--papier);color:var(--encre);
+    font:600 12px "IBM Plex Mono",monospace;letter-spacing:.02em;cursor:pointer;white-space:nowrap}
+  .mb-menus button[hidden]{display:none}
+  .mb-menus button:hover{background:#e0d2b6}
+  .mb-menus button[aria-expanded="true"]{background:var(--encre);color:var(--papier)}
+  .mbar button:focus-visible,.msheet button:focus-visible{outline:3px solid #b8924a;outline-offset:2px}
+  /* la feuille */
+  .msheet{position:fixed;z-index:27;top:calc(var(--mbar-h,50px) + 8px);right:10px;bottom:10px;width:min(400px,calc(100vw - 20px));
+    display:flex;flex-direction:column;background:rgba(233,221,198,.985);border:2px solid var(--encre);box-shadow:6px 8px 0 rgba(36,31,23,.28);color:var(--encre)}
+  .msheet[hidden]{display:none}
+  .ms-head{flex:none;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 10px 8px 14px;border-bottom:1.5px solid var(--encre)}
+  .ms-head h2{margin:0;font:700 18px "Zilla Slab",serif}
+  .ms-x{min-height:36px;padding:0 12px;border:1.5px solid var(--encre);background:var(--papier);color:var(--encre);font:600 12px "IBM Plex Mono",monospace;cursor:pointer}
+  .ms-body{overflow-y:auto;overscroll-behavior:contain;padding:12px 14px 16px}
+  .ms-body [data-pane]{display:none}
+  .ms-body [data-pane].on{display:block}
+  #msheet .hud,#msheet .formation,#msheet .quest,#msheet .levers,#msheet .log,#msheet .help-panel,#msheet .circuit,#msheet .villebadge{
+    position:static!important;inset:auto!important;transform:none!important;width:auto!important;min-width:0!important;max-width:none!important;
+    max-height:none!important;overflow:visible!important;margin:0 0 12px!important;box-shadow:none!important;z-index:auto!important;animation:none!important}
+  #msheet .hud,#msheet .formation,#msheet .quest,#msheet .levers,#msheet .help-panel{background:transparent!important;border:0!important;padding:0!important}
+  #msheet .help-panel{display:block!important;text-align:left;font-size:13px;line-height:1.7}
+  #msheet .formation .cyclebox .cyarrow{display:none}
+  /* la feuille porte déjà le titre, et la barre la période */
+  #msheet .formation .ft{display:none}
+  #msheet .circuit{flex-wrap:wrap;justify-content:flex-start;gap:6px 2px;overflow:visible!important}
+  #msheet .log{display:flex;flex-direction:column;align-items:flex-start;gap:10px}
+  #msheet .villebadge{align-self:stretch}
+  /* ce que la barre remplace */
+  .help{display:none!important}
+  .crisisTag{display:none!important}
+  /* le tutoriel : une bulle courte sous la barre */
+  .coach{top:calc(var(--mbar-h,50px) + 10px)!important;bottom:auto!important;left:12px!important;right:auto!important;
+    width:min(360px,34vw)!important;max-width:none!important;max-height:calc(100vh - var(--mbar-h,50px) - 40px)!important;overflow-y:auto}
+  .coach.min{width:auto!important}
+  .coach:not(.more) p{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+  .coach:not(.more) .crecap{display:none!important}
+  .coach .cmore{margin-top:6px;border:0;background:none;color:#f1d48a;font:600 12px "IBM Plex Mono",monospace;padding:4px 0;cursor:pointer;text-decoration:underline}
+  .coach.min .cmore{display:none}
+  .whap{top:calc(var(--mbar-h,50px) + 10px)!important;left:auto!important;right:14px!important}
+  html.ms-open .whap{display:none!important}
+  .tuto-focus{z-index:29}
+  .tuto-focus.below .label{top:auto;bottom:-38px}
+  .resolve-hint{z-index:30}
+  .resolve-hint.below:after{display:none}
+  /* petits écrans : la barre sur deux rangées, la feuille monte du bas */
+  @media (max-width:760px), (max-width:900px) and (max-height:500px){
+    .mbar{flex-wrap:wrap;gap:6px;padding:5px 6px}
+    .mb-state{flex:1 1 100%}
+    .mb-item{padding:2px 8px}
+    .mb-item b{font-size:14px}
+    .mb-menus{flex:1 1 100%;overflow-x:auto;scrollbar-width:none}
+    .mb-menus::-webkit-scrollbar{display:none}
+    .mb-menus{gap:3px}
+    .mb-menus button{flex:1 0 auto;min-height:38px;padding:0 7px}
+    /* entre le levier (14-142 px) et les boutons de droite */
+    .mb-launch{position:fixed;left:152px;right:auto;transform:none;bottom:calc(60px + env(safe-area-inset-bottom));z-index:26;min-height:44px}
+    .mb-launch.ready{animation:none}
+    .msheet{left:0;right:0;bottom:0;top:auto;width:auto;max-height:calc(100dvh - var(--mbar-h,90px) - 6px);border-width:2px 0 0;box-shadow:0 -5px 0 rgba(36,31,23,.18)}
+    html.ms-open .tc,html.ms-open .prompt,html.ms-open .coach,html.ms-open .mb-launch,html.ms-open .lm-retour{display:none!important}
+    .coach{left:6px!important;right:6px!important;width:auto!important}
+    .coach.min{right:auto!important}
+    .whap{top:auto!important;bottom:200px!important;left:6px!important;right:6px!important;width:auto!important;max-height:30vh!important}
+    /* les fenêtres du jeu deviennent des feuilles */
+    .concept,.guide,.journal,.upgrade,.cards,.zoneact,.diagpanel,.report{align-items:flex-end!important}
+    .concept .cpanel,.guide .gpanel,.journal .jpanel,.upgrade .upanel,.cards .panel,.zoneact .box,.diagpanel .dibox,.report .sheet{
+      width:100%!important;max-width:none!important;max-height:92dvh!important;overflow-y:auto!important;margin:0!important;
+      border-left:0!important;border-right:0!important;border-bottom:0!important;box-shadow:0 -6px 0 rgba(36,31,23,.25)!important}
   }
-  html.m-dock #formation.on{top:134px;left:8px;right:8px;bottom:auto;width:auto;max-height:none;overflow:visible;
-    padding:8px 10px 9px;background:rgba(233,221,198,.98);z-index:24}
-  html.m-dock.m-commune #formation.on{top:46px}
-  html.m-dock.m-commune .help{top:8px}
-  html.m-dock .formation .cyclebox .cyarrow{display:none}
-  html.m-dock .m-bar{display:flex;align-items:center;justify-content:flex-end;gap:8px;margin:2px 0 0}
-  html.m-dock .m-tabs{display:none;flex:1;gap:4px}
-  html.m-dock .m-tab,html.m-dock .m-toggle{min-height:36px;padding:0 11px;border:1.5px solid var(--encre);background:var(--papier);
-    color:var(--encre);font:600 12px "IBM Plex Mono",monospace;letter-spacing:.02em;cursor:pointer;box-shadow:2px 2px 0 rgba(36,31,23,.2)}
-  html.m-dock .m-tab[aria-selected="true"]{background:var(--encre);color:var(--papier)}
-  /* replié : titre, actions restantes, lancer le cycle — et rien d'autre */
-  html.m-dock:not(.m-open) #formation.on > :not(.ft):not(.f-actiontop):not(.cyclebox):not(.m-bar){display:none!important}
-  html.m-dock:not(.m-open) .formation .ft{margin-bottom:5px;padding-bottom:4px}
-  html.m-dock:not(.m-open) .formation .f-actiontop{margin:0 0 6px;padding:5px 8px}
-  html.m-dock:not(.m-open) .formation .cyclebox{margin:0 0 4px;padding:5px 6px 6px}
-  html.m-dock:not(.m-open) .formation .cyclebox .cyhint{display:none}
-  html.m-dock .coach{top:calc(var(--m-dock-bottom,250px) + 8px)!important;bottom:auto!important;
-    max-height:calc(100dvh - var(--m-dock-bottom,250px) - 16px)!important;overflow-y:auto}
-  /* déplié : une feuille qui descend jusqu'en bas ; les commandes de
-     conduite et le tutoriel s'effacent, on lit */
-  html.m-dock.m-open #formation.on{bottom:8px;overflow-y:auto;overscroll-behavior:contain;z-index:40}
-  html.m-dock.m-open .tc,html.m-dock.m-open .coach,html.m-dock.m-open .prompt{display:none!important}
-  html.m-dock.m-open .m-tabs{display:flex}
-  html.m-dock.m-open .m-bar{position:sticky;top:-8px;z-index:2;background:rgba(233,221,198,.98);padding:6px 0;margin:0 0 6px;
-    border-bottom:1.5px solid var(--encre)}
-  html.m-dock.m-open.m-tab-bord #formation.on > :not(.ft):not(.m-bar):not(.m-bord){display:none!important}
-  html.m-dock.m-open.m-tab-bord .m-bord{display:block}
-  /* le tableau de bord est court : la feuille s'arrête à son contenu, le monde reste visible dessous */
-  html.m-dock.m-open.m-tab-bord #formation.on{bottom:auto}
-  html.m-dock.m-open:not(.m-tab-bord) .m-foot{display:block;margin-top:10px;border-top:1px dashed rgba(36,31,23,.4);padding-top:8px}
-  html.m-dock #formation .m-bord .hud{position:static;min-width:0;width:auto;margin:0;padding:2px 0;
-    background:transparent;border:0;box-shadow:none}
-  html.m-dock #formation .m-foot .log{position:static;display:flex;flex-direction:column;align-items:flex-start;gap:8px}
-  html.m-dock #formation .m-foot .villebadge{position:static;width:auto;align-self:stretch;margin:0}
-  /* téléphone en paysage : le bandeau se tient entre le levier et les boutons */
   @media (max-width:900px) and (max-height:500px){
-    html.m-dock #formation.on{top:96px;left:146px;right:100px}
-    html.m-dock.m-open #formation.on{right:8px;top:8px}
-    html.m-dock.m-commune #formation.on{top:14px}
-    html.m-dock .coach{left:146px!important;right:100px!important}
+    .mbar{flex-wrap:nowrap}
+    .mb-state{flex:1 1 auto}
+    .mb-menus{flex:0 1 auto}
+    .msheet{left:auto;right:0;top:calc(var(--mbar-h,50px) + 4px);bottom:0;width:min(420px,60vw);max-height:none;border-width:0 0 0 2px}
+    .mb-launch{bottom:12px}
   }
 </style>
 <!-- v24: panneaux repositionnés, circuit nettoyé, animation drone avec chariot, ouvriers, argent et marchandises. -->
 </head>
 <body>
 <div id="app"></div>
+
+<!-- v70 — la barre d'état et les menus : tout l'état de la partie en une ligne, et les panneaux dans une feuille (menusBuild dans app.js). -->
+<header class="mbar" id="mbar">
+  <div class="mb-state" role="group" aria-label="État de la partie">
+    <span class="mb-item mb-cap"><small>Capital</small><b id="mb-cap">—</b></span>
+    <span class="mb-item mb-per"><small id="mb-per-lab">Période</small><b id="mb-per">—</b></span>
+    <span class="mb-item mb-act" id="mb-actwrap" hidden><small>Actions</small><b id="mb-act">3 / 3</b></span>
+    <button type="button" class="mb-item mb-step" id="mb-step" data-menu="circuit" aria-controls="msheet" aria-expanded="false"><small>Circuit</small><b id="mb-stepv">—</b></button>
+    <button type="button" class="mb-alert" id="mb-alert" data-menu="bord" aria-controls="msheet" aria-expanded="false" hidden>⚠ Crise</button>
+  </div>
+  <button type="button" class="mb-launch" id="mb-launch" hidden>Lancer le cycle ▸</button>
+  <nav class="mb-menus" aria-label="Menus">
+    <button type="button" id="mbm-formation" data-menu="formation" aria-controls="msheet" aria-expanded="false" hidden>Formation</button>
+    <button type="button" id="mbm-objectif" data-menu="objectif" aria-controls="msheet" aria-expanded="false">Objectif</button>
+    <button type="button" id="mbm-bord" data-menu="bord" aria-controls="msheet" aria-expanded="false">Tableau de bord</button>
+    <button type="button" id="mbm-journal" data-menu="journal" aria-controls="msheet" aria-expanded="false">Journal</button>
+    <button type="button" id="mbm-reglages" data-menu="reglages" aria-controls="msheet" aria-expanded="false">Réglages</button>
+  </nav>
+</header>
+<aside class="msheet" id="msheet" role="dialog" aria-modal="false" aria-labelledby="msheet-t" hidden>
+  <div class="ms-head"><h2 id="msheet-t">—</h2><button type="button" class="ms-x" id="msheet-x">Fermer ✕</button></div>
+  <div class="ms-body" id="msheet-body">
+    <section data-pane="formation"></section>
+    <section data-pane="objectif"></section>
+    <section data-pane="bord"></section>
+    <section data-pane="circuit"></section>
+    <section data-pane="journal"></section>
+    <section data-pane="reglages"></section>
+  </div>
+</aside>
 
 <!-- M0 — gate : écran de chargement des assets. Disparaît dès le manifest résolu,
      puis l'accueil prend le relais. Si un asset critique manque, message lisible. -->

@@ -8273,12 +8273,15 @@ const TutorialCoach={
     const h=document.getElementById('resolve-hint');
     if(!h) return;
     if(!on){ h.classList.remove('on'); return; }
-    const rb=document.getElementById('f-cyclebox')||document.getElementById('f-resolve');
+    const rb0=document.getElementById('f-cyclebox')||document.getElementById('f-resolve');
+    const rb=menusFocusTarget(rb0,'#f-cyclebox');
     if(!rb){ h.classList.remove('on'); return; }
     const r=rb.getBoundingClientRect();
     if(!r || r.width<=0 || r.height<=0){ h.classList.remove('on'); return; }
-    h.style.top=Math.round(r.top + r.height/2 - 28)+'px';
-    h.style.left=Math.max(8,Math.round(r.left - 232))+'px';
+    const inBar = r.top < 60;
+    h.classList.toggle('below', inBar);
+    h.style.top=Math.round(inBar ? r.bottom + 12 : r.top + r.height/2 - 28)+'px';
+    h.style.left=Math.max(8,Math.round(inBar ? Math.min(r.left, innerWidth - 222) : r.left - 232))+'px';
     h.classList.add('on');
   },
   resetMovement(){
@@ -8296,7 +8299,7 @@ const TutorialCoach={
   setFocus(item,progressText=''){
     const f=document.getElementById('tuto-focus'); const lab=document.getElementById('tuto-focus-label');
     if(!f || !item || !item.sel) { this.clearFocus(); return; }
-    const el=document.querySelector(item.sel);
+    const el=menusFocusTarget(document.querySelector(item.sel), item.sel);
     if(!el){ this.clearFocus(); return; }
     const r=el.getBoundingClientRect();
     if(!r || r.width<=0 || r.height<=0){ this.clearFocus(); return; }
@@ -8305,6 +8308,7 @@ const TutorialCoach={
     f.style.width=Math.round(r.width+16)+'px';
     f.style.height=Math.round(r.height+16)+'px';
     if(lab) lab.textContent=(progressText?progressText+' · ':'')+(item.label||'Repère');
+    f.classList.toggle('below', r.top < 60);   // une cible dans la barre : l'étiquette passe dessous
     f.classList.add('on');
   },
   clearPulse(){
@@ -16671,93 +16675,140 @@ function stageMode(){
     if(targetMarker) targetMarker.visible=false;
     if(groundArrow) groundArrow.visible=false;
   }
-  mobileDockSync();
+  menusStage();
 }
 
-/* ─── LE BANDEAU REPLIABLE DES PETITS ÉCRANS (mission mobile-panneaux, sept. 2026)
-   En formation sociale et dans la Commune, sur téléphone, le panneau de
-   formation (544 px de haut en portrait) recouvrait le tableau de bord, qui
-   se lisait à travers ; le bouton Agir se posait sur son bas ; badge et
-   journal partageaient le coin du levier. Un seul panneau à la fois : replié,
-   un bandeau (titre, actions restantes, lancer le cycle) qui laisse voir le
-   monde pour conduire ; déplié, une feuille à deux onglets, Formation et
-   Tableau de bord, qui porte aussi le badge et le journal.
-   Les nœuds sont DÉPLACÉS (jamais clonés — le jeu les met à jour par id) et
-   rendus à leur place hors des modes sociaux ou sur grand écran.
-   Appelée par stageMode(), donc par les trois chemins (entrée, reprise,
-   Commune) : c'est de la mise en scène, idempotente. Déclarations de
-   fonction et `var` : stageMode peut tourner avant l'évaluation de ce bloc. */
-var _mdMq=null, _mdBuilt=false, _mdMarks={};
-function mobileDockMq(){
-  if(!_mdMq && window.matchMedia){
-    _mdMq=matchMedia('(max-width:760px), (max-width:900px) and (max-height:500px)');
-    const onCh=()=>mobileDockSync();
-    if(_mdMq.addEventListener) _mdMq.addEventListener('change',onCh); else if(_mdMq.addListener) _mdMq.addListener(onCh);
+
+/* ─── LA BARRE D'ÉTAT ET LES MENUS (v70, mission menus, sept. 2026)
+   Arbitrage du propriétaire : les panneaux étaient trop nombreux et prenaient
+   trop de place — six à l'écran en formation sociale au bureau, injouable sur
+   téléphone. À l'écran ne restent que la BARRE D'ÉTAT (capital, période,
+   actions, étape du circuit, alerte, lancer le cycle) et une rangée de MENUS ;
+   chaque menu ouvre UNE feuille à la fois (colonne à droite au bureau, feuille
+   montant du bas sur téléphone).
+   Les panneaux existants sont DÉPLACÉS dans la feuille, jamais clonés : tout le
+   jeu les met à jour par id. Déclarations de fonction et `var` : stageMode()
+   et la boucle peuvent tourner avant l'évaluation de ce bloc (pas de TDZ). */
+var MENUS = {
+  formation:{t:'Formation sociale', nodes:['formation']},
+  objectif: {t:'Objectif',          nodes:['quest','levers']},
+  bord:     {t:'Tableau de bord',   nodes:['hud']},
+  circuit:  {t:'Le circuit du capital', nodes:['circuit']},
+  journal:  {t:'Journal',           nodes:['log']},
+  reglages: {t:'Réglages',          nodes:['help-panel']}
+};
+var _mOpen=null, _mBuilt=false, _mPrev={}, _mBtn=null;
+function menusSmall(){ return !!(window.matchMedia && matchMedia('(max-width:760px), (max-width:900px) and (max-height:500px)').matches); }
+function menusBuild(){
+  if(_mBuilt) return;
+  const sheet=document.getElementById('msheet'), body=document.getElementById('msheet-body'), bar=document.getElementById('mbar');
+  if(!sheet||!body||!bar) return;
+  _mBuilt=true;
+  for(const key in MENUS){
+    const pane=body.querySelector('[data-pane="'+key+'"]'); if(!pane) continue;
+    MENUS[key].nodes.forEach(id=>{ const n=document.getElementById(id); if(n) pane.appendChild(n); });
   }
-  return _mdMq;
-}
-function mobileDockBuild(f){
-  if(_mdBuilt) return; _mdBuilt=true;
-  const html=document.documentElement;
-  const bar=document.createElement('div'); bar.className='m-bar';
-  bar.innerHTML='<div class="m-tabs" role="tablist" aria-label="Panneaux">'
-    +'<button type="button" role="tab" class="m-tab" data-mtab="form" aria-selected="true">Formation</button>'
-    +'<button type="button" role="tab" class="m-tab" data-mtab="bord" aria-selected="false">Tableau de bord</button></div>'
-    +'<button type="button" class="m-toggle" aria-expanded="false" aria-controls="formation">Déplier ▾</button>';
-  const bord=document.createElement('div'); bord.className='m-bord';
-  const foot=document.createElement('div'); foot.className='m-foot';
-  const cy=document.getElementById('f-cyclebox');
-  if(cy && cy.parentNode===f){ cy.after(bar); bar.after(bord); } else { f.prepend(bord); f.prepend(bar); }
-  f.appendChild(foot);
-  const tog=bar.querySelector('.m-toggle');
-  tog.addEventListener('click',()=>{
-    const open=!html.classList.contains('m-open');
-    html.classList.toggle('m-open',open);
-    tog.setAttribute('aria-expanded',open?'true':'false');
-    tog.textContent=open?'Replier ▴':'Déplier ▾';
-    f.scrollTop=0;
-    mobileDockMeasure();
-  });
-  bar.querySelectorAll('[data-mtab]').forEach(b=>b.addEventListener('click',()=>{
-    const bordOn=b.dataset.mtab==='bord';
-    html.classList.toggle('m-tab-bord',bordOn);
-    bar.querySelectorAll('[data-mtab]').forEach(x=>x.setAttribute('aria-selected',String(x===b)));
-    if(!html.classList.contains('m-open')) tog.click();
-    f.scrollTop=0;
-  }));
-  if(window.ResizeObserver) new ResizeObserver(mobileDockMeasure).observe(f);
-}
-/* Le tutoriel se pose SOUS le bandeau replié, dont la hauteur varie. */
-function mobileDockMeasure(){
-  const f=document.getElementById('formation'); if(!f) return;
-  const r=f.getBoundingClientRect();
-  document.documentElement.style.setProperty('--m-dock-bottom', Math.round(r.bottom)+'px');
-}
-function mobileDockMove(id, slot, home){
-  const n=document.getElementById(id); if(!n) return;
-  if(home){
-    const m=_mdMarks[id]; if(m && m.parentNode){ m.parentNode.insertBefore(n,m); m.remove(); } delete _mdMarks[id];
-  } else if(slot && n.parentNode!==slot){
-    if(!_mdMarks[id]){ const m=document.createComment('m-dock:'+id); n.parentNode.insertBefore(m,n); _mdMarks[id]=m; }
-    slot.appendChild(n);
+  bar.querySelectorAll('[data-menu]').forEach(btn=>btn.addEventListener('click',e=>{ e.stopPropagation(); menusToggle(btn.dataset.menu, btn); }));
+  const x=document.getElementById('msheet-x'); if(x) x.addEventListener('click',()=>menusClose(true));
+  const launch=document.getElementById('mb-launch');
+  if(launch) launch.addEventListener('click',e=>{ e.stopPropagation(); const r=document.getElementById('f-resolve'); if(r && !r.disabled) r.click(); });
+  /* Échap ferme la feuille — sauf si une fenêtre du jeu est ouverte : elle est
+     la couche du dessus et garde son propre geste. */
+  window.addEventListener('keydown',e=>{
+    if(e.key!=='Escape' || !_mOpen) return;
+    if(typeof anyModalOpen==='function' && anyModalOpen()) return;
+    e.preventDefault(); menusClose(true);
+  },true);
+  // le chariot ne doit pas partir quand on touche la barre ou la feuille
+  [bar,sheet].forEach(el=>el.addEventListener('pointerdown',e=>e.stopPropagation()));
+  const measure=()=>{ document.documentElement.style.setProperty('--mbar-h', Math.round(bar.getBoundingClientRect().height)+'px'); };
+  measure(); if(window.ResizeObserver) new ResizeObserver(measure).observe(bar); window.addEventListener('resize',measure);
+  // le tutoriel : un bouton pour lire la suite d'une bulle courte
+  const cb=document.getElementById('coach-body'), coach=document.getElementById('tutorial-coach');
+  if(cb && coach && !document.getElementById('coach-more')){
+    const m=document.createElement('button'); m.type='button'; m.id='coach-more'; m.className='cmore'; m.textContent='Lire la suite';
+    m.addEventListener('click',()=>{ const on=coach.classList.toggle('more'); m.textContent=on?'Réduire':'Lire la suite'; });
+    cb.after(m);
   }
 }
-function mobileDockSync(){
-  const f=document.getElementById('formation'); if(!f) return;
-  const html=document.documentElement;
-  const social=(gameMode==='socialFormation' || gameMode==='commune');
-  const mq=mobileDockMq(), on=social && !!(mq && mq.matches);
-  html.classList.toggle('m-commune', gameMode==='commune');
-  mobileDockBuild(f);
-  html.classList.toggle('m-dock', on);
-  const bord=f.querySelector('.m-bord'), foot=f.querySelector('.m-foot');
-  mobileDockMove('hud', bord, !on);
-  mobileDockMove('log', foot, !on);
-  if(!on){
-    html.classList.remove('m-open','m-tab-bord');
-    const tog=f.querySelector('.m-toggle'); if(tog){ tog.setAttribute('aria-expanded','false'); tog.textContent='Déplier ▾'; }
-  }
-  mobileDockMeasure();
+function menusToggle(key, btn){
+  menusBuild();
+  if(_mOpen===key){ menusClose(true); return; }
+  const sheet=document.getElementById('msheet'); if(!sheet) return;
+  _mOpen=key; _mBtn=btn||null;
+  sheet.querySelectorAll('[data-pane]').forEach(p=>p.classList.toggle('on', p.dataset.pane===key));
+  const t=document.getElementById('msheet-t');
+  if(t) t.textContent=(key==='formation' && typeof gameMode!=='undefined' && gameMode==='commune') ? 'La Commune' : MENUS[key].t;
+  sheet.hidden=false;
+  document.documentElement.classList.add('ms-open');
+  document.querySelectorAll('#mbar [data-menu]').forEach(b=>b.setAttribute('aria-expanded', String(b.dataset.menu===key)));
+  const bodyEl=document.getElementById('msheet-body'); if(bodyEl) bodyEl.scrollTop=0;
+  const x=document.getElementById('msheet-x'); if(x) x.focus({preventScroll:true});
+}
+function menusClose(restore){
+  const sheet=document.getElementById('msheet'); if(!sheet || !_mOpen) return;
+  const was=_mOpen; _mOpen=null; sheet.hidden=true;
+  document.documentElement.classList.remove('ms-open');
+  document.querySelectorAll('#mbar [data-menu]').forEach(b=>b.setAttribute('aria-expanded','false'));
+  if(restore){ const b=_mBtn || document.querySelector('#mbar [data-menu="'+was+'"]'); if(b && b.getClientRects().length) b.focus({preventScroll:true}); }
+  _mBtn=null;
+}
+/* Mise en scène des menus selon le mode — appelée par stageMode(), donc par
+   l'entrée, la reprise et la Commune. Idempotente. */
+function menusStage(){
+  menusBuild();
+  const social=(gameMode==='socialFormation' || gameMode==='commune'), commune=(gameMode==='commune');
+  const show=(id,on)=>{ const e=document.getElementById(id); if(e) e.hidden=!on; };
+  show('mbm-formation', social);
+  show('mbm-objectif', !social);
+  show('mb-actwrap', social);
+  show('mb-launch', social);
+  show('mb-step', !commune);
+  const f=document.getElementById('mbm-formation'); if(f) f.textContent = commune ? 'Commune' : 'Formation';
+  if(_mOpen){ const b=document.querySelector('#mbar [data-menu="'+_mOpen+'"]'); if(!b || b.hidden) menusClose(false); }
+  _mPrev={};   // tout réécrire au prochain tick
+  menusTick();
+}
+function menusSetText(id, v){ if(_mPrev[id]===v) return; _mPrev[id]=v; const e=document.getElementById(id); if(e) e.textContent=v; }
+/* L'état de la barre, lu dans l'état du jeu — jamais dans ses panneaux.
+   Appelée par la boucle environ trois fois par seconde ; n'écrit que ce qui change. */
+function menusTick(){
+  if(!_mBuilt){ menusBuild(); if(!_mBuilt) return; }
+  try{
+    const s=state, social=(gameMode==='socialFormation' || gameMode==='commune');
+    menusSetText('mb-cap', money(s.argent||0));
+    let per='—', perLab='Période';
+    if(gameMode==='commune' && s.commune){ per='An '+s.commune.an; perLab='Commune'; }
+    else if(gameMode==='socialFormation'){ per='Cycle '+s.cycle+' · An '+(s.annee||1); perLab='Période'; }
+    else if(gamePhase==='precapital'){ per=(typeof fondationActe==='function') ? ('Acte '+fondationActe().acte) : 'Fondation'; perLab='Fondation'; }
+    else { per='Cycle '+(s.cycle||0); perLab='Circuit'; }
+    menusSetText('mb-per', per); menusSetText('mb-per-lab', perLab);
+    if(social){
+      const n=Math.max(0, s.actionsRestantes||0);
+      menusSetText('mb-act', n+' / 3');
+      const l=document.getElementById('mb-launch'); if(l){ const ready=(n<=0); if(_mPrev.launchReady!==ready){ _mPrev.launchReady=ready; l.classList.toggle('ready', ready); } }
+    }
+    let stepTxt='Circuit';
+    if(gamePhase==='precapital'){ const ns=(PRECAPITAL_STEPS.find(x=>!x.done())||{}); stepTxt = ns.sym ? (ns.sym+' · '+(ns.nm||'')) : 'Fondation'; }
+    else if(gameMode==='socialFormation'){ const nAl=document.querySelectorAll('#circuit .stp.alert').length; stepTxt = nAl ? ('⚠ '+nAl+(nAl>1?' tensions':' tension')) : 'Sans tension'; }
+    else if(gameMode!=='commune'){ const c=CIRCUIT[Math.min(CIRCUIT.length-1, Math.max(0, step||0))]; if(c) stepTxt=c.sym+' · '+(c.full||''); }
+    menusSetText('mb-stepv', stepTxt);
+    const crise=!!(s.d && s.d.declenche);
+    if(_mPrev.crise!==crise){ _mPrev.crise=crise; const a=document.getElementById('mb-alert'); if(a) a.hidden=!crise; }
+  }catch(e){}
+}
+/* Le tutoriel vise parfois un élément rangé dans une feuille fermée : il vise
+   alors le bouton qui l'ouvre (ou « Lancer le cycle », pour la boîte du cycle). */
+function menusFocusTarget(el, sel){
+  if(!el) return el;
+  const sheet=document.getElementById('msheet');
+  const inClosed = !!(sheet && sheet.contains(el) && (sheet.hidden || !el.closest('[data-pane].on')));
+  if(!inClosed) return el;
+  if(/f-cyclebox|f-resolve/.test(sel||'')){ const l=document.getElementById('mb-launch'); if(l && !l.hidden) return l; }
+  if(/f-actiontop|f-howactions|f-actdots/.test(sel||'')){ const a=document.getElementById('mb-actwrap'); if(a && !a.hidden) return a; }
+  const pane=el.closest('[data-pane]'); const key=pane && pane.dataset.pane;
+  if(key==='circuit') return document.getElementById('mb-step') || el;
+  return (key && document.getElementById('mbm-'+key)) || el;
 }
 
 function enterSocialFormation(){
@@ -16768,6 +16819,7 @@ function enterSocialFormation(){
   if(!state.regime) initRegime(state);
   if(!state.groups) initGroups(state);
   stageMode();
+  if(!menusSmall()) menusToggle('formation', document.getElementById('mbm-formation'));
   updateSocialGroups(state); computeRanking(state); updateRegime(state); renderFormationPanel(); renderCircuitBar();
   if(typeof buildSocialTableau==='function') buildSocialTableau();
   addHistoricalEvent('age','Naissance de la formation sociale : le circuit devient une contrainte systémique.');
@@ -17469,7 +17521,7 @@ function loop(){
   const cinemaActive = (typeof CinemaMode!=='undefined') && CinemaMode.isActive();
   const tScale = (typeof CinemaMode!=='undefined') ? CinemaMode.getTimeScale() : 1;
   const dt = rawDt * tScale;
-  _coachTick+=dt; if(_coachTick>0.35){ _coachTick=0; tutorialCoachRefresh(); }
+  _coachTick+=dt; if(_coachTick>0.35){ _coachTick=0; tutorialCoachRefresh(); menusTick(); }
   // Pendant le cinéma le chariot reste immobile (les inputs sont ignorés
   // par Vehicle.speed=0 et le timeScale réduit toute dérive éventuelle).
   // M9 — accueil ouvert : le chariot ne bouge pas. Le monde continue de
