@@ -16665,6 +16665,93 @@ function stageMode(){
     if(targetMarker) targetMarker.visible=false;
     if(groundArrow) groundArrow.visible=false;
   }
+  mobileDockSync();
+}
+
+/* ─── LE BANDEAU REPLIABLE DES PETITS ÉCRANS (mission mobile-panneaux, sept. 2026)
+   En formation sociale et dans la Commune, sur téléphone, le panneau de
+   formation (544 px de haut en portrait) recouvrait le tableau de bord, qui
+   se lisait à travers ; le bouton Agir se posait sur son bas ; badge et
+   journal partageaient le coin du levier. Un seul panneau à la fois : replié,
+   un bandeau (titre, actions restantes, lancer le cycle) qui laisse voir le
+   monde pour conduire ; déplié, une feuille à deux onglets, Formation et
+   Tableau de bord, qui porte aussi le badge et le journal.
+   Les nœuds sont DÉPLACÉS (jamais clonés — le jeu les met à jour par id) et
+   rendus à leur place hors des modes sociaux ou sur grand écran.
+   Appelée par stageMode(), donc par les trois chemins (entrée, reprise,
+   Commune) : c'est de la mise en scène, idempotente. Déclarations de
+   fonction et `var` : stageMode peut tourner avant l'évaluation de ce bloc. */
+var _mdMq=null, _mdBuilt=false, _mdMarks={};
+function mobileDockMq(){
+  if(!_mdMq && window.matchMedia){
+    _mdMq=matchMedia('(max-width:760px), (max-width:900px) and (max-height:500px)');
+    const onCh=()=>mobileDockSync();
+    if(_mdMq.addEventListener) _mdMq.addEventListener('change',onCh); else if(_mdMq.addListener) _mdMq.addListener(onCh);
+  }
+  return _mdMq;
+}
+function mobileDockBuild(f){
+  if(_mdBuilt) return; _mdBuilt=true;
+  const html=document.documentElement;
+  const bar=document.createElement('div'); bar.className='m-bar';
+  bar.innerHTML='<div class="m-tabs" role="tablist" aria-label="Panneaux">'
+    +'<button type="button" role="tab" class="m-tab" data-mtab="form" aria-selected="true">Formation</button>'
+    +'<button type="button" role="tab" class="m-tab" data-mtab="bord" aria-selected="false">Tableau de bord</button></div>'
+    +'<button type="button" class="m-toggle" aria-expanded="false" aria-controls="formation">Déplier ▾</button>';
+  const bord=document.createElement('div'); bord.className='m-bord';
+  const foot=document.createElement('div'); foot.className='m-foot';
+  const cy=document.getElementById('f-cyclebox');
+  if(cy && cy.parentNode===f){ cy.after(bar); bar.after(bord); } else { f.prepend(bord); f.prepend(bar); }
+  f.appendChild(foot);
+  const tog=bar.querySelector('.m-toggle');
+  tog.addEventListener('click',()=>{
+    const open=!html.classList.contains('m-open');
+    html.classList.toggle('m-open',open);
+    tog.setAttribute('aria-expanded',open?'true':'false');
+    tog.textContent=open?'Replier ▴':'Déplier ▾';
+    f.scrollTop=0;
+    mobileDockMeasure();
+  });
+  bar.querySelectorAll('[data-mtab]').forEach(b=>b.addEventListener('click',()=>{
+    const bordOn=b.dataset.mtab==='bord';
+    html.classList.toggle('m-tab-bord',bordOn);
+    bar.querySelectorAll('[data-mtab]').forEach(x=>x.setAttribute('aria-selected',String(x===b)));
+    if(!html.classList.contains('m-open')) tog.click();
+    f.scrollTop=0;
+  }));
+  if(window.ResizeObserver) new ResizeObserver(mobileDockMeasure).observe(f);
+}
+/* Le tutoriel se pose SOUS le bandeau replié, dont la hauteur varie. */
+function mobileDockMeasure(){
+  const f=document.getElementById('formation'); if(!f) return;
+  const r=f.getBoundingClientRect();
+  document.documentElement.style.setProperty('--m-dock-bottom', Math.round(r.bottom)+'px');
+}
+function mobileDockMove(id, slot, home){
+  const n=document.getElementById(id); if(!n) return;
+  if(home){
+    const m=_mdMarks[id]; if(m && m.parentNode){ m.parentNode.insertBefore(n,m); m.remove(); } delete _mdMarks[id];
+  } else if(slot && n.parentNode!==slot){
+    if(!_mdMarks[id]){ const m=document.createComment('m-dock:'+id); n.parentNode.insertBefore(m,n); _mdMarks[id]=m; }
+    slot.appendChild(n);
+  }
+}
+function mobileDockSync(){
+  const f=document.getElementById('formation'); if(!f) return;
+  const html=document.documentElement;
+  const social=(gameMode==='socialFormation' || gameMode==='commune');
+  const mq=mobileDockMq(), on=social && !!(mq && mq.matches);
+  html.classList.toggle('m-commune', gameMode==='commune');
+  mobileDockBuild(f);
+  html.classList.toggle('m-dock', on);
+  const bord=f.querySelector('.m-bord'), foot=f.querySelector('.m-foot');
+  mobileDockMove('hud', bord, !on);
+  mobileDockMove('log', foot, !on);
+  if(!on){
+    html.classList.remove('m-open','m-tab-bord');
+    const tog=f.querySelector('.m-toggle'); if(tog){ tog.setAttribute('aria-expanded','false'); tog.textContent='Déplier ▾'; }
+  }
+  mobileDockMeasure();
 }
 
 function enterSocialFormation(){
