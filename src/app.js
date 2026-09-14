@@ -16657,6 +16657,12 @@ function stageMode(){
   // quête a ses propres règles selon la largeur d'écran.
   const q=document.getElementById('quest'); if(q) q.style.display = social ? 'none' : '';
   const cb=document.getElementById('circuit'); if(cb) cb.style.display = (gameMode==='commune') ? 'none' : '';
+  /* Dans la Commune, ni classement des capitaux concurrents ni « développement
+     du capital » : le rapport n'est plus la concurrence. Mise en scène, donc
+     rejouée à la reprise (le classement, lui, se réécrirait au cycle suivant). */
+  const commune=(gameMode==='commune');
+  const rk=document.getElementById('f-ranking'); if(rk) rk.style.display = commune ? 'none' : '';
+  const vb=document.getElementById('villebadge'); if(vb) vb.style.display = commune ? 'none' : '';
   if(social){
     // Le circuit n'est plus une route à suivre : ni ligne, ni marqueur, ni
     // flèche au sol. moveTargetMarker() en cache déjà deux, mais il ne faut
@@ -16798,7 +16804,13 @@ function renderCommunePanel(){
   const dots=document.getElementById('f-actdots'); if(dots) dots.innerHTML=[0,1,2].map(i=>`<div class="dot${i>=state.actionsRestantes?' used':''}"></div>`).join('');
   const cb=document.getElementById('f-cyclebox'), ch=document.getElementById('f-cyclehint');
   if(cb) cb.classList.toggle('ready', (state.actionsRestantes||0)<=0);
-  if(ch) ch.textContent=(state.actionsRestantes||0)<=0 ? 'Maintenant : lance le cycle' : 'Après tes actions : lance le cycle';
+  if(ch) ch.textContent=(state.actionsRestantes||0)<=0 ? 'Maintenant : lance la période' : 'Après tes actions : lance la période';
+  /* La Commune garde le panneau de la formation sociale, mais pas ses mots :
+     il disait encore « Formation sociale » et « Lancer le cycle productif »
+     alors qu'il n'y a plus ni capital ni cycle productif à lancer. */
+  const ft=document.querySelector('#formation .ft span'); if(ft) ft.textContent='La Commune';
+  const rb=document.getElementById('f-resolve');
+  if(rb){ rb.textContent='Lancer la période ▸'; rb.title='La production planifiée rencontre les besoins : pénurie, participation, bureaucratie.'; }
   renderHistLog();
 }
 function renderFormationPanel(){
@@ -16834,6 +16846,7 @@ function renderFormationPanel(){
   const dots=document.getElementById('f-actdots'); if(dots) dots.innerHTML=[0,1,2].map(i=>`<div class="dot${i>=s.actionsRestantes?' used':''}"></div>`).join('');
   const rb=document.getElementById('f-resolve');
   if(rb){ rb.textContent='Lancer le cycle productif ▸'; rb.title='Transforme tes interventions en production, vente, dette, stocks et conflit social.'; }
+  const ft=document.querySelector('#formation .ft span'); if(ft) ft.textContent='Formation sociale';
   const cb=document.getElementById('f-cyclebox'), ch=document.getElementById('f-cyclehint');
   if(cb) cb.classList.toggle('ready', (s.actionsRestantes||0)<=0);
   if(ch) ch.textContent=(s.actionsRestantes||0)<=0 ? 'Maintenant : lance le cycle' : 'Après tes actions : lance le cycle';
